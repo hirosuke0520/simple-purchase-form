@@ -95,11 +95,12 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
+        const errorData = await response.text();
+        throw new Error(errorData || 'Failed to create checkout session');
       }
+
+      const data = await response.json();
 
       if (data?.checkout_url) {
         window.location.href = data.checkout_url;
