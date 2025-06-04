@@ -80,27 +80,31 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     try {
       const product = products[0];
       
-      // Call the Stripe wrapper function through Supabase's PostgreSQL function
-      const { data, error } = await supabase.rpc('create_checkout_session', {
-        price_id: product.priceId,
-        success_url: `${window.location.origin}/success`,
-        cancel_url: `${window.location.origin}/cancel`,
-        mode: product.mode,
-        customer_email: formData.email
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          price_id: product.priceId,
+          success_url: `${window.location.origin}/success`,
+          cancel_url: `${window.location.origin}/cancel`,
+          mode: product.mode,
+          customer_email: formData.email
+        }),
       });
 
-      if (error) {
-        throw new Error(error.message || 'Failed to create checkout session');
-      }
+      const data = await response.json();
 
-      // console.log(`data: ${data}`);
-      // console.log(`error: ${error}`);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
+      }
 
       if (data?.checkout_url) {
         window.location.href = data.checkout_url;
       } else {
-        // throw new Error('No checkout URL received');        
-        throw new Error(`data: ${JSON.stringify(data)}`);
+        throw new Error('No checkout URL received');
       }
     } catch (error: any) {
       console.error("Payment failed:", error);
