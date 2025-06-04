@@ -1,11 +1,10 @@
-import React, { useState, FormEvent } from 'react';
-import { loadStripe } from '@stripe/stripe-js';
-import Input from './ui/Input';
-import Button from './ui/Button';
-import { validateEmail, validateName, formatPrice } from '../lib/utils';
-import { CreditCard, CheckCircle2, AlertCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { products } from '../stripe-config';
+import React, { useState, FormEvent } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import Input from "./ui/Input";
+import Button from "./ui/Button";
+import { validateEmail, validateName, formatPrice } from "../lib/utils";
+import { CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
+import { products } from "../stripe-config";
 
 interface FormData {
   name: string;
@@ -18,10 +17,10 @@ interface FormErrors {
 }
 
 enum PaymentStatus {
-  IDLE = 'idle',
-  PROCESSING = 'processing',
-  SUCCESS = 'success',
-  ERROR = 'error',
+  IDLE = "idle",
+  PROCESSING = "processing",
+  SUCCESS = "success",
+  ERROR = "error",
 }
 
 interface PurchaseFormProps {
@@ -38,17 +37,19 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   productDescription,
 }) => {
   const [formData, setFormData] = useState<FormData>({
-    name: '',
-    email: '',
+    name: "",
+    email: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(PaymentStatus.IDLE);
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(
+    PaymentStatus.IDLE
+  );
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    
+
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -56,73 +57,81 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
-    
+
     if (!validateName(formData.name)) {
-      newErrors.name = 'Please enter a valid name';
+      newErrors.name = "Please enter a valid name";
     }
-    
+
     if (!validateEmail(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
+      newErrors.email = "Please enter a valid email address";
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setPaymentStatus(PaymentStatus.PROCESSING);
-    
+
     try {
-      const { data: { session }, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: Math.random().toString(36).slice(-8),
-      });
-
-      if (signUpError) {
-        throw new Error(signUpError.message);
-      }
-
       const stripe = await stripePromise;
       if (!stripe) {
-        throw new Error('Stripe failed to initialize');
+        throw new Error("Stripe failed to initialize");
       }
 
-      const product = products[0]; // Using the first product from our config
-      
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          price_id: product.priceId,
-          success_url: `${window.location.origin}/success`,
-          cancel_url: `${window.location.origin}/cancel`,
-          mode: product.mode,
-        }),
+      const product = products[0];
+
+      console.log("Starting guest checkout with product:", product);
+      console.log("Customer data:", {
+        name: formData.name,
+        email: formData.email,
       });
 
-      const { sessionId, url } = await response.json();
+      const { error } = await stripe.redirectToCheckout({
+        lineItems: [
+          {
+            price: product.priceId,
+            quantity: 1,
+          },
+        ],
+        mode: product.mode,
+        successUrl: `${window.location.origin}/success`,
+        cancelUrl: `${window.location.origin}/cancel`,
+        customerEmail: formData.email,
+        billingAddressCollection: "required",
+        shippingAddressCollection: {
+          allowedCountries: ["JP", "US"],
+        },
+      });
 
-      if (url) {
-        window.location.href = url;
-      } else {
-        const { error: stripeError } = await stripe.redirectToCheckout({ sessionId });
-        if (stripeError) {
-          throw new Error(stripeError.message);
-        }
+      if (error) {
+        throw new Error(`Stripe checkout error: ${error.message}`);
       }
+
+      console.log("Checkout redirect initiated successfully");
     } catch (error: any) {
-      console.error('Payment failed:', error);
+      console.error("Payment failed:", error);
       setPaymentStatus(PaymentStatus.ERROR);
-      setErrorMessage(error.message || 'There was an error processing your payment. Please try again.');
+
+      let errorMsg =
+        error.message ||
+        "支払い処理中にエラーが発生しました。もう一度お試しください。";
+
+      if (errorMsg.includes("Failed to fetch")) {
+        errorMsg =
+          "ネットワークエラーが発生しました。インターネット接続を確認してください。";
+      } else if (errorMsg.includes("Stripe")) {
+        errorMsg =
+          "決済システムエラーが発生しました。しばらく時間をおいてからお試しください。";
+      }
+
+      setErrorMessage(errorMsg);
     }
   };
 
@@ -133,14 +142,17 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           <div className="mb-4 rounded-full bg-green-100 p-3">
             <CheckCircle2 className="h-10 w-10 text-green-600" />
           </div>
-          <h2 className="mb-2 text-2xl font-bold text-gray-800">Payment Successful!</h2>
+          <h2 className="mb-2 text-2xl font-bold text-gray-800">
+            Payment Successful!
+          </h2>
           <p className="mb-6 text-gray-600">
-            Thank you for your purchase. A confirmation email has been sent to {formData.email}.
+            Thank you for your purchase. A confirmation email has been sent to{" "}
+            {formData.email}.
           </p>
           <Button
             onClick={() => {
               setPaymentStatus(PaymentStatus.IDLE);
-              setFormData({ name: '', email: '' });
+              setFormData({ name: "", email: "" });
             }}
           >
             Make Another Purchase
@@ -157,11 +169,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           <div className="mb-4 rounded-full bg-red-100 p-3">
             <AlertCircle className="h-10 w-10 text-red-600" />
           </div>
-          <h2 className="mb-2 text-2xl font-bold text-gray-800">Payment Failed</h2>
+          <h2 className="mb-2 text-2xl font-bold text-gray-800">
+            Payment Failed
+          </h2>
           <p className="mb-6 text-gray-600">{errorMessage}</p>
-          <Button
-            onClick={() => setPaymentStatus(PaymentStatus.IDLE)}
-          >
+          <Button onClick={() => setPaymentStatus(PaymentStatus.IDLE)}>
             Try Again
           </Button>
         </div>
@@ -176,7 +188,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         <p className="mt-1 text-blue-100">{productDescription}</p>
         <p className="mt-4 text-3xl font-bold">{formatPrice(productPrice)}</p>
       </div>
-      
+
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         <Input
           label="Full Name"
@@ -188,7 +200,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           required
           className="transition-all duration-200 focus:scale-[1.01]"
         />
-        
+
         <Input
           label="Email Address"
           name="email"
@@ -200,7 +212,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           required
           className="transition-all duration-200 focus:scale-[1.01]"
         />
-        
+
         <div className="pt-4">
           <Button
             type="submit"
@@ -211,7 +223,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
             Pay {formatPrice(productPrice)}
           </Button>
         </div>
-        
+
         <p className="text-center text-xs text-gray-500">
           Your payment will be processed securely via Stripe.
         </p>
