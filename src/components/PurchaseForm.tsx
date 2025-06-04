@@ -4,6 +4,7 @@ import Button from "./ui/Button";
 import { validateEmail, validateName, formatPrice } from "../lib/utils";
 import { CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
 import { products } from "../stripe-config";
+import { supabase } from "../lib/supabase";
 
 interface FormData {
   name: string;
@@ -78,30 +79,22 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
 
     try {
       const product = products[0];
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`;
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          price_id: product.priceId,
-          success_url: `${window.location.origin}/success`,
-          cancel_url: `${window.location.origin}/cancel`,
-          mode: product.mode,
-        }),
+      
+      // Call the Stripe wrapper function through Supabase's PostgreSQL function
+      const { data, error } = await supabase.rpc('create_checkout_session', {
+        price_id: product.priceId,
+        success_url: `${window.location.origin}/success`,
+        cancel_url: `${window.location.origin}/cancel`,
+        mode: product.mode,
+        customer_email: formData.email
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
+      if (error) {
+        throw new Error(error.message || 'Failed to create checkout session');
       }
 
-      if (data.url) {
-        window.location.href = data.url;
+      if (data?.checkout_url) {
+        window.location.href = data.checkout_url;
       } else {
         throw new Error('No checkout URL received');
       }
