@@ -93,10 +93,14 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         throw new Error(error.message || 'Failed to create checkout session');
       }
 
+      // console.log(`data: ${data}`);
+      // console.log(`error: ${error}`);
+
       if (data?.checkout_url) {
         window.location.href = data.checkout_url;
       } else {
-        throw new Error('No checkout URL received');
+        // throw new Error('No checkout URL received');        
+        throw new Error(`data: ${JSON.stringify(data)}`);
       }
     } catch (error: any) {
       console.error("Payment failed:", error);
