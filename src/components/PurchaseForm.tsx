@@ -1,5 +1,4 @@
 import React, { useState, FormEvent } from "react";
-import { loadStripe } from "@stripe/stripe-js";
 import Input from "./ui/Input";
 import Button from "./ui/Button";
 import { validateEmail, validateName, formatPrice } from "../lib/utils";
@@ -28,8 +27,6 @@ interface PurchaseFormProps {
   productPrice: number;
   productDescription: string;
 }
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const PurchaseForm: React.FC<PurchaseFormProps> = ({
   productName,
@@ -80,58 +77,38 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     setPaymentStatus(PaymentStatus.PROCESSING);
 
     try {
-      const stripe = await stripePromise;
-      if (!stripe) {
-        throw new Error("Stripe failed to initialize");
-      }
-
       const product = products[0];
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`;
 
-      console.log("Starting guest checkout with product:", product);
-      console.log("Customer data:", {
-        name: formData.name,
-        email: formData.email,
-      });
-
-      const { error } = await stripe.redirectToCheckout({
-        lineItems: [
-          {
-            price: product.priceId,
-            quantity: 1,
-          },
-        ],
-        mode: product.mode,
-        successUrl: `${window.location.origin}/success`,
-        cancelUrl: `${window.location.origin}/cancel`,
-        customerEmail: formData.email,
-        billingAddressCollection: "required",
-        shippingAddressCollection: {
-          allowedCountries: ["JP", "US"],
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
+        body: JSON.stringify({
+          price_id: product.priceId,
+          success_url: `${window.location.origin}/success`,
+          cancel_url: `${window.location.origin}/cancel`,
+          mode: product.mode,
+        }),
       });
 
-      if (error) {
-        throw new Error(`Stripe checkout error: ${error.message}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session');
       }
 
-      console.log("Checkout redirect initiated successfully");
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received');
+      }
     } catch (error: any) {
       console.error("Payment failed:", error);
       setPaymentStatus(PaymentStatus.ERROR);
-
-      let errorMsg =
-        error.message ||
-        "支払い処理中にエラーが発生しました。もう一度お試しください。";
-
-      if (errorMsg.includes("Failed to fetch")) {
-        errorMsg =
-          "ネットワークエラーが発生しました。インターネット接続を確認してください。";
-      } else if (errorMsg.includes("Stripe")) {
-        errorMsg =
-          "決済システムエラーが発生しました。しばらく時間をおいてからお試しください。";
-      }
-
-      setErrorMessage(errorMsg);
+      setErrorMessage(error.message || "支払い処理中にエラーが発生しました。もう一度お試しください。");
     }
   };
 
