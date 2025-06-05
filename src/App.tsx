@@ -17,11 +17,6 @@ function App() {
             <p>Please set up your Stripe environment variables.</p>
           </div>
         )}
-        {!product.priceId && (
-          <div className="rounded-lg bg-yellow-50 p-4 text-yellow-800 mb-4">
-            <p>Please set up your Stripe environment variables.</p>
-          </div>
-        )}
         <Routes>
           <Route
             path="/"

@@ -71,6 +71,13 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    const product = products[0];
+    if (!product.priceId) {
+      setPaymentStatus(PaymentStatus.ERROR);
+      setErrorMessage('Stripe is not properly configured. Please check your environment variables.');
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -78,12 +85,6 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     setPaymentStatus(PaymentStatus.PROCESSING);
 
     try {
-      const product = products[0];
-      
-      if (!product.priceId) {
-        throw new Error('Stripe price ID is not configured');
-      }
-      
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
         method: 'POST',
         headers: {
