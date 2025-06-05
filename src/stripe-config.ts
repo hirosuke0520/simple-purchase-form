@@ -8,10 +8,10 @@ export interface StripeProduct {
 
 export const products: StripeProduct[] = [
   {
-    id: 'prod_SR80TPbaetgBbb',
-    priceId: 'price_1RWFk5D7DUEtdvlGKe3pwPVm',
-    name: 'テスト商品',
-    description: 'これはテストの商品です。',
+    id: process.env.VITE_STRIPE_PRODUCT_ID!,
+    priceId: process.env.VITE_STRIPE_PRICE_ID!,
+    name: 'Premium Package',
+    description: 'Get access to all premium features',
     mode: 'payment',
   },
 ];
