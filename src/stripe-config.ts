@@ -8,8 +8,8 @@ export interface StripeProduct {
 
 export const products: StripeProduct[] = [
   {
-    id: import.meta.env.VITE_STRIPE_PRODUCT_ID!,
-    priceId: import.meta.env.VITE_STRIPE_PRICE_ID!,
+    id: import.meta.env.VITE_STRIPE_PRODUCT_ID || '',
+    priceId: import.meta.env.VITE_STRIPE_PRICE_ID || '',
     name: 'Premium Package',
     description: 'Get access to all premium features',
     mode: 'payment',

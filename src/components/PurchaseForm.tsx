@@ -2,7 +2,7 @@ import React, { useState, FormEvent } from "react";
 import Input from "./ui/Input";
 import Button from "./ui/Button";
 import { validateEmail, validateName, formatPrice } from "../lib/utils";
-import { CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
+import { CreditCard, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { products } from "../stripe-config";
 import { supabase } from "../lib/supabase";
 
@@ -80,6 +80,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     try {
       const product = products[0];
       
+      if (!product.priceId) {
+        throw new Error('Stripe price ID is not configured');
+      }
+      
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
         method: 'POST',
         headers: {
@@ -110,7 +114,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     } catch (error: any) {
       console.error("Payment failed:", error);
       setPaymentStatus(PaymentStatus.ERROR);
-      setErrorMessage(error.message || "支払い処理中にエラーが発生しました。もう一度お試しください。");
+      setErrorMessage(error.message || "An error occurred during payment processing. Please try again.");
     }
   };
 
