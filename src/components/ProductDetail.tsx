@@ -117,7 +117,7 @@ const ProductDetail: React.FC = () => {
                 </Button>
                 <Link to="/">
                   <Button>
-                    View All Products
+                    Back to Products
                   </Button>
                 </Link>
               </div>
@@ -134,11 +134,11 @@ const ProductDetail: React.FC = () => {
         {/* Back button */}
         <div className="mb-6">
           <Link 
-            to="/" 
+            to={product?.mode === 'subscription' ? '/dashboard' : '/'} 
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Products
+            Back to {product?.mode === 'subscription' ? 'Subscriptions' : 'Products'}
           </Link>
         </div>
 

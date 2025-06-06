@@ -9,10 +9,11 @@ import {
   RefreshCw,
   ShoppingBag,
   ArrowRight,
+  CreditCard,
 } from "lucide-react";
 import Button from "./ui/Button";
 
-const ProductList: React.FC = () => {
+const SingleProductList: React.FC = () => {
   const [products, setProducts] = useState<StripeProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,13 +22,15 @@ const ProductList: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log("Loading products...");
+      console.log("Loading single purchase products...");
 
       const fetchedProducts = await getProducts();
-      setProducts(fetchedProducts);
+      // Filter for single purchase items only
+      const singleProducts = fetchedProducts.filter(product => product.mode === 'payment');
+      setProducts(singleProducts);
 
-      if (fetchedProducts.length === 0) {
-        setError("No products available");
+      if (singleProducts.length === 0) {
+        setError("No single purchase products available");
       }
     } catch (err: any) {
       console.error("Failed to load products:", err);
@@ -59,7 +62,7 @@ const ProductList: React.FC = () => {
                 Loading Products
               </h2>
               <p className="text-gray-600">
-                Fetching the latest products from Stripe...
+                Fetching available single purchase items...
               </p>
             </div>
           </div>
@@ -102,11 +105,24 @@ const ProductList: React.FC = () => {
             <ShoppingBag className="h-10 w-10 text-blue-600" />
           </div>
           <h1 className="mb-4 text-4xl font-bold text-gray-900">
-            Stripe Products
+            Single Purchase Items
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Choose from our Stripe-powered products and services.
+            One-time purchases with instant access. No recurring charges.
           </p>
+          
+          {/* Navigation */}
+          <div className="mt-8 flex justify-center gap-4">
+            <div className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">
+              Single Items
+            </div>
+            <Link to="/dashboard">
+              <Button variant="outline" className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                View Subscriptions
+              </Button>
+            </Link>
+          </div>
         </header>
 
         {/* Products Grid */}
@@ -117,15 +133,22 @@ const ProductList: React.FC = () => {
                 <AlertCircle className="h-10 w-10 text-yellow-600" />
               </div>
               <h2 className="mb-2 text-xl font-bold text-gray-800">
-                No Products Available
+                No Single Purchase Items Available
               </h2>
               <p className="mb-6 text-gray-600 text-sm">
-                No products are currently available for purchase.
+                No one-time purchase products are currently available.
               </p>
-              <Button onClick={handleRetry} className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </Button>
+              <div className="flex gap-3">
+                <Button onClick={handleRetry} className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </Button>
+                <Link to="/dashboard">
+                  <Button variant="outline">
+                    View Subscriptions
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         ) : (
@@ -135,37 +158,31 @@ const ProductList: React.FC = () => {
                 key={product.id}
                 className="animate-fadeIn overflow-hidden rounded-lg bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
               >
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
+                <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white">
                   <h3 className="text-xl font-bold mb-2">{product.name}</h3>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-bold">
                       {formatPrice(product.price, product.currency)}
                     </span>
-                    {product.mode === "subscription" && product.interval && (
-                      <span className="text-blue-200 text-sm">
-                        per {product.interval}
-                      </span>
-                    )}
+                    <span className="text-green-200 text-sm">
+                      one-time
+                    </span>
                   </div>
                 </div>
 
                 <div className="p-6">
                   <p className="text-gray-600 mb-6 min-h-[3rem]">
                     {product.description ||
-                      "Premium product with excellent features."}
+                      "Premium product with instant access and lifetime value."}
                   </p>
 
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500">
-                      {product.mode === "subscription"
-                        ? "Subscription"
-                        : "One-time payment"}
+                      Single Purchase
                     </div>
                     <Link to={`/${product.id}`}>
                       <Button className="flex items-center gap-2">
-                        {product.mode === "subscription"
-                          ? "Subscribe"
-                          : "Buy Now"}
+                        Buy Now
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </Link>
@@ -182,7 +199,7 @@ const ProductList: React.FC = () => {
             <div className="flex items-center justify-center">
               <div className="flex items-center space-x-2 text-gray-600">
                 <ShoppingBag className="h-4 w-4" />
-                <span className="text-sm">Premium Quality</span>
+                <span className="text-sm">Instant Access</span>
               </div>
             </div>
 
@@ -196,7 +213,7 @@ const ProductList: React.FC = () => {
             <div className="flex items-center justify-center">
               <div className="flex items-center space-x-2 text-gray-600">
                 <RefreshCw className="h-4 w-4" />
-                <span className="text-sm">24/7 Support</span>
+                <span className="text-sm">No Recurring Charges</span>
               </div>
             </div>
           </div>
@@ -206,4 +223,4 @@ const ProductList: React.FC = () => {
   );
 };
 
-export default ProductList;
+export default SingleProductList;
