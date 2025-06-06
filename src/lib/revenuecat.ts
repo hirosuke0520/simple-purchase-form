@@ -1,4 +1,4 @@
-import Purchases from '@revenuecat/purchases-js';
+import * as Purchases from '@revenuecat/purchases-js';
 
 // RevenueCatの初期化
 export const initRevenueCat = async (userId?: string) => {
