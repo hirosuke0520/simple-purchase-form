@@ -5,11 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatPrice(price: number): string {
+export function formatPrice(price: number, currency: string = 'USD'): string {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD',
-  }).format(price);
+    currency: currency.toUpperCase(),
+  }).format(price / 100); // Convert from cents to dollars
 }
 
 export function validateEmail(email: string): boolean {

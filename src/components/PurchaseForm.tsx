@@ -3,7 +3,6 @@ import Input from "./ui/Input";
 import Button from "./ui/Button";
 import { validateEmail, validateName, formatPrice } from "../lib/utils";
 import { CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
-import { getProducts } from "../stripe-config";
 import { StripeProduct } from "../types/stripe";
 
 interface FormData {
@@ -24,16 +23,10 @@ enum PaymentStatus {
 }
 
 interface PurchaseFormProps {
-  productName: string;
-  productPrice: number;
-  productDescription: string;
   product: StripeProduct;
 }
 
 const PurchaseForm: React.FC<PurchaseFormProps> = ({
-  productName,
-  productPrice,
-  productDescription,
   product,
 }) => {
   const [formData, setFormData] = useState<FormData>({
@@ -80,12 +73,8 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
     setPaymentStatus(PaymentStatus.PROCESSING);
 
     try {
-      // Get current products dynamically
-      const currentProducts = await getProducts();
-      const currentProduct = currentProducts.find(p => p.id === product.id) || currentProducts[0];
-      
-      if (!currentProduct) {
-        throw new Error('No products available');
+      if (!product) {
+        throw new Error('Product not available');
       }
 
       // Check if Stripe is properly configured
@@ -97,11 +86,11 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         throw new Error('Stripe is not properly configured. Please check your environment variables.');
       }
 
-      if (!currentProduct.priceId || currentProduct.priceId === 'price_fallback') {
+      if (!product.priceId || product.priceId === 'price_fallback') {
         throw new Error('Stripe products are not properly configured. Please ensure your Stripe integration is set up correctly.');
       }
 
-      console.log('Creating checkout session for product:', currentProduct);
+      console.log('Creating checkout session for product:', product);
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
         method: 'POST',
@@ -110,10 +99,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          price_id: currentProduct.priceId,
+          price_id: product.priceId,
           success_url: `${window.location.origin}/success`,
           cancel_url: `${window.location.origin}/`,
-          mode: currentProduct.mode,
+          mode: product.mode,
           customer_email: formData.email,
         }),
       });
@@ -188,10 +177,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   return (
     <div className="overflow-hidden rounded-lg bg-white shadow-lg transition-all duration-300">
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
-        <h2 className="text-2xl font-bold">{productName}</h2>
-        <p className="mt-1 text-blue-100">{productDescription}</p>
+        <h2 className="text-2xl font-bold">{product.name}</h2>
+        <p className="mt-1 text-blue-100">{product.description}</p>
         <div className="mt-4 flex items-baseline gap-2">
-          <p className="text-3xl font-bold">{formatPrice(productPrice)}</p>
+          <p className="text-3xl font-bold">{formatPrice(product.price, product.currency)}</p>
           {product.mode === 'subscription' && product.interval && (
             <span className="text-blue-200 text-sm">
               per {product.interval}
@@ -231,7 +220,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
             isLoading={paymentStatus === PaymentStatus.PROCESSING}
           >
             <CreditCard className="h-5 w-5" />
-            {product.mode === 'subscription' ? 'Subscribe' : 'Pay'} {formatPrice(productPrice)}
+            {product.mode === 'subscription' ? 'Subscribe' : 'Pay'} {formatPrice(product.price, product.currency)}
           </Button>
         </div>
 
