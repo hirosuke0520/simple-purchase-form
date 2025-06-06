@@ -1,77 +1,84 @@
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
-import Stripe from 'npm:stripe@17.7.0';
-
-const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
-const stripe = new Stripe(stripeSecret, {
-  appInfo: {
-    name: 'Bolt Integration',
-    version: '1.0.0',
-  },
-});
-
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': '*',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   try {
-    if (req.method === 'OPTIONS') {
+    // Handle CORS preflight requests
+    if (req.method === "OPTIONS") {
       return new Response(null, {
-        status: 204,
+        status: 200,
         headers: corsHeaders,
       });
     }
 
-    if (req.method !== 'POST') {
-      return new Response('Method not allowed', { 
-        status: 405,
-        headers: corsHeaders,
-      });
-    }
-
-    const { price_id, success_url, cancel_url, mode, customer_email } = await req.json();
-
-    if (!price_id) {
-      throw new Error('Price ID is required');
-    }
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
+    if (req.method !== "POST") {
+      return new Response(
+        JSON.stringify({ error: "Method not allowed" }),
         {
-          price: price_id,
-          quantity: 1,
-        },
-      ],
-      mode,
-      success_url,
-      cancel_url,
-      customer_email,
-    });
+          status: 405,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    const { priceId, successUrl, cancelUrl } = await req.json();
+
+    if (!priceId) {
+      return new Response(
+        JSON.stringify({ error: "Price ID is required" }),
+        {
+          status: 400,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    }
+
+    // Mock checkout session for development
+    // In production, you would create a real Stripe checkout session
+    const mockCheckoutSession = {
+      id: "cs_mock_" + Math.random().toString(36).substr(2, 9),
+      url: successUrl || "http://localhost:5173/success",
+      payment_status: "unpaid",
+      mode: "payment",
+    };
 
     return new Response(
       JSON.stringify({
-        sessionId: session.id,
-        checkout_url: session.url,
+        sessionId: mockCheckoutSession.id,
+        url: mockCheckoutSession.url,
+        success: true,
       }),
       {
+        status: 200,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       }
     );
-  } catch (error: any) {
-    console.error('Error creating checkout session:', error);
+  } catch (error) {
+    console.error("Error in stripe-checkout function:", error);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: "Internal server error",
+        message: error.message,
+        success: false,
+      }),
       {
         status: 500,
         headers: {
           ...corsHeaders,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       }
     );
