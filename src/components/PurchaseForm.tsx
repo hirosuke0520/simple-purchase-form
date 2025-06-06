@@ -83,6 +83,12 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       return;
     }
 
+    if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
+      setPaymentStatus(PaymentStatus.ERROR);
+      setErrorMessage('Stripe is not properly configured. Please check your environment variables.');
+      return;
+    }
+
     if (!product.priceId || product.priceId === 'price_fallback') {
       setPaymentStatus(PaymentStatus.ERROR);
       setErrorMessage('Stripe products are not properly configured. Please ensure your Stripe integration is set up correctly.');
@@ -103,18 +109,19 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           success_url: `${window.location.origin}/success`,
           cancel_url: `${window.location.origin}/`,
           mode: product.mode,
-          customer_email: formData.email
+          customer_email: formData.email,
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(errorData || 'Failed to create checkout session');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
       }
 
       const data = await response.json();
 
-      if (data?.checkout_url) {
+      if (data.success && data.checkout_url) {
+        // Redirect to Stripe Checkout
         window.location.href = data.checkout_url;
       } else {
         throw new Error('No checkout URL received');

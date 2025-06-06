@@ -1,61 +1,67 @@
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import Stripe from 'npm:stripe@17.7.0';
+
+const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
+const stripe = new Stripe(stripeSecret, {
+  appInfo: {
+    name: 'Supabase Stripe Integration',
+    version: '1.0.0',
+  },
+});
+
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-Deno.serve(async (req: Request) => {
+Deno.serve(async (req) => {
   try {
-    // Handle CORS preflight requests
-    if (req.method === "OPTIONS") {
+    if (req.method === 'OPTIONS') {
       return new Response(null, {
-        status: 200,
+        status: 204,
         headers: corsHeaders,
       });
     }
 
-    // Mock Stripe products data for development
-    // In production, you would fetch this from Stripe API
-    const products = [
-      {
-        id: "prod_premium",
-        name: "Premium Package",
-        description: "Get access to all premium features",
-        default_price: "price_premium_monthly",
-        active: true,
-        metadata: {},
-      }
-    ];
+    if (req.method !== 'GET') {
+      return new Response('Method not allowed', { 
+        status: 405,
+        headers: corsHeaders,
+      });
+    }
 
-    const responseData = {
-      products: products,
-      success: true,
-    };
+    // Fetch active products from Stripe
+    const products = await stripe.products.list({
+      active: true,
+      limit: 10,
+      expand: ['data.default_price'],
+    });
 
     return new Response(
-      JSON.stringify(responseData),
+      JSON.stringify({ 
+        products: products.data,
+        success: true 
+      }),
       {
-        status: 200,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       }
     );
-  } catch (error) {
-    console.error("Error in stripe-products function:", error);
-    
+  } catch (error: any) {
+    console.error('Error fetching products:', error);
     return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        message: error.message,
-        success: false,
+      JSON.stringify({ 
+        error: error.message,
+        success: false 
       }),
       {
         status: 500,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       }
     );
