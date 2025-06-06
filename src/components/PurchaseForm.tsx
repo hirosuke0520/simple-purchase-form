@@ -3,7 +3,8 @@ import Input from "./ui/Input";
 import Button from "./ui/Button";
 import { validateEmail, validateName, formatPrice } from "../lib/utils";
 import { CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
-import { products } from "../stripe-config";
+import { getProducts } from "../stripe-config";
+import { StripeProduct } from "../types/stripe";
 
 interface FormData {
   name: string;
@@ -26,12 +27,14 @@ interface PurchaseFormProps {
   productName: string;
   productPrice: number;
   productDescription: string;
+  product: StripeProduct;
 }
 
 const PurchaseForm: React.FC<PurchaseFormProps> = ({
   productName,
   productPrice,
   productDescription,
+  product,
 }) => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
@@ -74,30 +77,32 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       return;
     }
 
-    const product = products[0];
-    
-    // Check if Stripe is properly configured
-    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
-      setPaymentStatus(PaymentStatus.ERROR);
-      setErrorMessage('Supabase is not properly configured. Please check your environment variables.');
-      return;
-    }
-
-    if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-      setPaymentStatus(PaymentStatus.ERROR);
-      setErrorMessage('Stripe is not properly configured. Please check your environment variables.');
-      return;
-    }
-
-    if (!product.priceId || product.priceId === 'price_fallback') {
-      setPaymentStatus(PaymentStatus.ERROR);
-      setErrorMessage('Stripe products are not properly configured. Please ensure your Stripe integration is set up correctly.');
-      return;
-    }
-
     setPaymentStatus(PaymentStatus.PROCESSING);
 
     try {
+      // Get current products dynamically
+      const currentProducts = await getProducts();
+      const currentProduct = currentProducts.find(p => p.id === product.id) || currentProducts[0];
+      
+      if (!currentProduct) {
+        throw new Error('No products available');
+      }
+
+      // Check if Stripe is properly configured
+      if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+        throw new Error('Supabase is not properly configured. Please check your environment variables.');
+      }
+
+      if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
+        throw new Error('Stripe is not properly configured. Please check your environment variables.');
+      }
+
+      if (!currentProduct.priceId || currentProduct.priceId === 'price_fallback') {
+        throw new Error('Stripe products are not properly configured. Please ensure your Stripe integration is set up correctly.');
+      }
+
+      console.log('Creating checkout session for product:', currentProduct);
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-checkout`, {
         method: 'POST',
         headers: {
@@ -105,10 +110,10 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          price_id: product.priceId,
+          price_id: currentProduct.priceId,
           success_url: `${window.location.origin}/success`,
           cancel_url: `${window.location.origin}/`,
-          mode: product.mode,
+          mode: currentProduct.mode,
           customer_email: formData.email,
         }),
       });
@@ -121,6 +126,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       const data = await response.json();
 
       if (data.success && data.checkout_url) {
+        console.log('Redirecting to Stripe Checkout:', data.checkout_url);
         // Redirect to Stripe Checkout
         window.location.href = data.checkout_url;
       } else {
@@ -168,7 +174,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
             <AlertCircle className="h-10 w-10 text-red-600" />
           </div>
           <h2 className="mb-2 text-2xl font-bold text-gray-800">
-            Configuration Error
+            Payment Error
           </h2>
           <p className="mb-6 text-gray-600 text-sm">{errorMessage}</p>
           <Button onClick={() => setPaymentStatus(PaymentStatus.IDLE)}>
@@ -184,7 +190,14 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
         <h2 className="text-2xl font-bold">{productName}</h2>
         <p className="mt-1 text-blue-100">{productDescription}</p>
-        <p className="mt-4 text-3xl font-bold">{formatPrice(productPrice)}</p>
+        <div className="mt-4 flex items-baseline gap-2">
+          <p className="text-3xl font-bold">{formatPrice(productPrice)}</p>
+          {product.mode === 'subscription' && product.interval && (
+            <span className="text-blue-200 text-sm">
+              per {product.interval}
+            </span>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -218,7 +231,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
             isLoading={paymentStatus === PaymentStatus.PROCESSING}
           >
             <CreditCard className="h-5 w-5" />
-            Pay {formatPrice(productPrice)}
+            {product.mode === 'subscription' ? 'Subscribe' : 'Pay'} {formatPrice(productPrice)}
           </Button>
         </div>
 
