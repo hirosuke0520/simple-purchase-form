@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getProducts } from '../stripe-config';
-import { StripeProduct } from '../types/stripe';
+import { getCurrentOfferings, convertRevenueCatPackageToProduct } from '../lib/revenuecat';
+import { RevenueCatProduct } from '../types/revenuecat';
 import { formatPrice } from '../lib/utils';
 import { Loader2, AlertCircle, RefreshCw, ShoppingBag, ArrowRight, Crown } from 'lucide-react';
 import Button from './ui/Button';
 
-const ProductList: React.FC = () => {
-  const [products, setProducts] = useState<StripeProduct[]>([]);
+const RevenueCatProductList: React.FC = () => {
+  const [products, setProducts] = useState<RevenueCatProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,17 +15,25 @@ const ProductList: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Loading products...');
+      console.log('Loading RevenueCat products...');
       
-      const fetchedProducts = await getProducts();
-      setProducts(fetchedProducts);
+      const currentOffering = await getCurrentOfferings();
       
-      if (fetchedProducts.length === 0) {
-        setError('No products available');
+      if (!currentOffering || !currentOffering.availablePackages.length) {
+        setError('No products available from RevenueCat');
+        setProducts([]);
+        return;
       }
+
+      const revenueCatProducts = currentOffering.availablePackages.map(pkg => 
+        convertRevenueCatPackageToProduct(pkg, currentOffering.identifier)
+      );
+      
+      setProducts(revenueCatProducts);
+      console.log('RevenueCat products loaded:', revenueCatProducts);
     } catch (err: any) {
-      console.error('Failed to load products:', err);
-      setError(err.message || 'Failed to load products');
+      console.error('Failed to load RevenueCat products:', err);
+      setError(err.message || 'Failed to load products from RevenueCat');
     } finally {
       setLoading(false);
     }
@@ -53,7 +61,7 @@ const ProductList: React.FC = () => {
                 Loading Products
               </h2>
               <p className="text-gray-600">
-                Fetching the latest products from Stripe...
+                Fetching the latest products from RevenueCat...
               </p>
             </div>
           </div>
@@ -78,10 +86,15 @@ const ProductList: React.FC = () => {
               <p className="mb-6 text-gray-600 text-sm">
                 {error}
               </p>
-              <Button onClick={handleRetry} className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4" />
-                Retry
-              </Button>
+              <div className="space-y-3">
+                <Button onClick={handleRetry} className="flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Retry
+                </Button>
+                <p className="text-xs text-gray-500">
+                  Make sure VITE_REVENUECAT_PUBLIC_KEY is set in your environment variables
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -94,22 +107,13 @@ const ProductList: React.FC = () => {
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <header className="mb-12 text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100">
-            <ShoppingBag className="h-10 w-10 text-blue-600" />
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-r from-purple-100 to-blue-100">
+            <Crown className="h-10 w-10 text-purple-600" />
           </div>
-          <h1 className="mb-4 text-4xl font-bold text-gray-900">Stripe Products</h1>
+          <h1 className="mb-4 text-4xl font-bold text-gray-900">Premium Subscriptions</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Choose from our Stripe-powered products and services.
+            Choose from our premium subscription plans powered by RevenueCat.
           </p>
-          <div className="mt-6">
-            <Link 
-              to="/revenuecat" 
-              className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium"
-            >
-              <Crown className="h-4 w-4" />
-              View RevenueCat Subscriptions
-            </Link>
-          </div>
         </header>
 
         {/* Products Grid */}
@@ -123,7 +127,7 @@ const ProductList: React.FC = () => {
                 No Products Available
               </h2>
               <p className="mb-6 text-gray-600 text-sm">
-                No products are currently available for purchase.
+                No subscription products are currently available.
               </p>
               <Button onClick={handleRetry} className="flex items-center gap-2">
                 <RefreshCw className="h-4 w-4" />
@@ -138,14 +142,14 @@ const ProductList: React.FC = () => {
                 key={product.id}
                 className="animate-fadeIn overflow-hidden rounded-lg bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.02]"
               >
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white">
+                <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
                   <h3 className="text-xl font-bold mb-2">{product.name}</h3>
                   <div className="flex items-baseline gap-2">
                     <span className="text-2xl font-bold">
                       {formatPrice(product.price, product.currency)}
                     </span>
                     {product.mode === 'subscription' && product.interval && (
-                      <span className="text-blue-200 text-sm">
+                      <span className="text-purple-200 text-sm">
                         per {product.interval}
                       </span>
                     )}
@@ -154,15 +158,18 @@ const ProductList: React.FC = () => {
 
                 <div className="p-6">
                   <p className="text-gray-600 mb-6 min-h-[3rem]">
-                    {product.description || 'Premium product with excellent features.'}
+                    {product.description}
                   </p>
 
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500">
-                      {product.mode === 'subscription' ? 'Subscription' : 'One-time payment'}
+                      <span className="inline-flex items-center gap-1">
+                        <Crown className="h-3 w-3" />
+                        {product.mode === 'subscription' ? 'Subscription' : 'One-time'}
+                      </span>
                     </div>
-                    <Link to={`/${product.id}`}>
-                      <Button className="flex items-center gap-2">
+                    <Link to={`/revenuecat/${product.id}`}>
+                      <Button className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
                         {product.mode === 'subscription' ? 'Subscribe' : 'Buy Now'}
                         <ArrowRight className="h-4 w-4" />
                       </Button>
@@ -179,7 +186,7 @@ const ProductList: React.FC = () => {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="flex items-center justify-center">
               <div className="flex items-center space-x-2 text-gray-600">
-                <ShoppingBag className="h-4 w-4" />
+                <Crown className="h-4 w-4" />
                 <span className="text-sm">Premium Quality</span>
               </div>
             </div>
@@ -204,4 +211,4 @@ const ProductList: React.FC = () => {
   );
 };
 
-export default ProductList;
+export default RevenueCatProductList;
