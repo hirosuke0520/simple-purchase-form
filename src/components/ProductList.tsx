@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { getProducts } from '../stripe-config';
-import { StripeProduct } from '../types/stripe';
-import { formatPrice } from '../lib/utils';
-import { Loader2, AlertCircle, RefreshCw, ShoppingBag, ArrowRight, Crown } from 'lucide-react';
-import Button from './ui/Button';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { getProducts } from "../stripe-config";
+import { StripeProduct } from "../types/stripe";
+import { formatPrice } from "../lib/utils";
+import {
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+  ShoppingBag,
+  ArrowRight,
+} from "lucide-react";
+import Button from "./ui/Button";
 
 const ProductList: React.FC = () => {
   const [products, setProducts] = useState<StripeProduct[]>([]);
@@ -15,17 +21,17 @@ const ProductList: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Loading products...');
-      
+      console.log("Loading products...");
+
       const fetchedProducts = await getProducts();
       setProducts(fetchedProducts);
-      
+
       if (fetchedProducts.length === 0) {
-        setError('No products available');
+        setError("No products available");
       }
     } catch (err: any) {
-      console.error('Failed to load products:', err);
-      setError(err.message || 'Failed to load products');
+      console.error("Failed to load products:", err);
+      setError(err.message || "Failed to load products");
     } finally {
       setLoading(false);
     }
@@ -75,9 +81,7 @@ const ProductList: React.FC = () => {
               <h2 className="mb-2 text-xl font-bold text-gray-800">
                 Failed to Load Products
               </h2>
-              <p className="mb-6 text-gray-600 text-sm">
-                {error}
-              </p>
+              <p className="mb-6 text-gray-600 text-sm">{error}</p>
               <Button onClick={handleRetry} className="flex items-center gap-2">
                 <RefreshCw className="h-4 w-4" />
                 Retry
@@ -97,19 +101,12 @@ const ProductList: React.FC = () => {
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100">
             <ShoppingBag className="h-10 w-10 text-blue-600" />
           </div>
-          <h1 className="mb-4 text-4xl font-bold text-gray-900">Stripe Products</h1>
+          <h1 className="mb-4 text-4xl font-bold text-gray-900">
+            Stripe Products
+          </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Choose from our Stripe-powered products and services.
           </p>
-          <div className="mt-6">
-            <Link 
-              to="/revenuecat" 
-              className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-medium"
-            >
-              <Crown className="h-4 w-4" />
-              View RevenueCat Subscriptions
-            </Link>
-          </div>
         </header>
 
         {/* Products Grid */}
@@ -144,7 +141,7 @@ const ProductList: React.FC = () => {
                     <span className="text-2xl font-bold">
                       {formatPrice(product.price, product.currency)}
                     </span>
-                    {product.mode === 'subscription' && product.interval && (
+                    {product.mode === "subscription" && product.interval && (
                       <span className="text-blue-200 text-sm">
                         per {product.interval}
                       </span>
@@ -154,16 +151,21 @@ const ProductList: React.FC = () => {
 
                 <div className="p-6">
                   <p className="text-gray-600 mb-6 min-h-[3rem]">
-                    {product.description || 'Premium product with excellent features.'}
+                    {product.description ||
+                      "Premium product with excellent features."}
                   </p>
 
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-500">
-                      {product.mode === 'subscription' ? 'Subscription' : 'One-time payment'}
+                      {product.mode === "subscription"
+                        ? "Subscription"
+                        : "One-time payment"}
                     </div>
                     <Link to={`/${product.id}`}>
                       <Button className="flex items-center gap-2">
-                        {product.mode === 'subscription' ? 'Subscribe' : 'Buy Now'}
+                        {product.mode === "subscription"
+                          ? "Subscribe"
+                          : "Buy Now"}
                         <ArrowRight className="h-4 w-4" />
                       </Button>
                     </Link>
@@ -183,14 +185,14 @@ const ProductList: React.FC = () => {
                 <span className="text-sm">Premium Quality</span>
               </div>
             </div>
-            
+
             <div className="flex items-center justify-center">
               <div className="flex items-center space-x-2 text-gray-600">
                 <AlertCircle className="h-4 w-4" />
                 <span className="text-sm">Secure Payments</span>
               </div>
             </div>
-            
+
             <div className="flex items-center justify-center">
               <div className="flex items-center space-x-2 text-gray-600">
                 <RefreshCw className="h-4 w-4" />
