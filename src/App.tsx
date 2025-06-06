@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import SingleProductList from "./components/SingleProductList";
 import SubscriptionDashboard from "./components/SubscriptionDashboard";
+import ProductDetail from "./components/ProductDetail";
 import SuccessPage from "./components/SuccessPage";
 
 function App() {
