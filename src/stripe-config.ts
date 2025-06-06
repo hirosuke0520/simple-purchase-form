@@ -15,14 +15,21 @@ export const products: StripeProduct[] = [
 
 export async function initializeStripe() {
   try {
+    // Check if we have the required environment variables
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      console.warn('Supabase environment variables not found');
+      return;
+    }
+
     const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stripe-products`, {
       headers: {
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
       },
     });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch Stripe products');
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const data = await response.json();
@@ -37,6 +44,14 @@ export async function initializeStripe() {
     }
   } catch (error) {
     console.error('Error fetching Stripe products:', error);
+    // Set fallback product data if API fails
+    products[0] = {
+      id: 'fallback',
+      priceId: 'price_fallback',
+      name: 'Premium Package',
+      description: 'Get access to all premium features',
+      mode: 'payment',
+    };
   }
 }
 

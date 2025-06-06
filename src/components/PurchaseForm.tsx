@@ -2,9 +2,8 @@ import React, { useState, FormEvent } from "react";
 import Input from "./ui/Input";
 import Button from "./ui/Button";
 import { validateEmail, validateName, formatPrice } from "../lib/utils";
-import { CreditCard, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
 import { products } from "../stripe-config";
-import { supabase } from "../lib/supabase";
 
 interface FormData {
   name: string;
@@ -71,14 +70,22 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
-    const product = products[0];
-    if (!product.priceId) {
-      setPaymentStatus(PaymentStatus.ERROR);
-      setErrorMessage('Stripe is not properly configured. Please check your environment variables.');
+    if (!validateForm()) {
       return;
     }
 
-    if (!validateForm()) {
+    const product = products[0];
+    
+    // Check if Stripe is properly configured
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      setPaymentStatus(PaymentStatus.ERROR);
+      setErrorMessage('Supabase is not properly configured. Please check your environment variables.');
+      return;
+    }
+
+    if (!product.priceId || product.priceId === 'price_fallback') {
+      setPaymentStatus(PaymentStatus.ERROR);
+      setErrorMessage('Stripe products are not properly configured. Please ensure your Stripe integration is set up correctly.');
       return;
     }
 
@@ -94,7 +101,7 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
         body: JSON.stringify({
           price_id: product.priceId,
           success_url: `${window.location.origin}/success`,
-          cancel_url: `${window.location.origin}/cancel`,
+          cancel_url: `${window.location.origin}/`,
           mode: product.mode,
           customer_email: formData.email
         }),
@@ -154,9 +161,9 @@ const PurchaseForm: React.FC<PurchaseFormProps> = ({
             <AlertCircle className="h-10 w-10 text-red-600" />
           </div>
           <h2 className="mb-2 text-2xl font-bold text-gray-800">
-            Payment Failed
+            Configuration Error
           </h2>
-          <p className="mb-6 text-gray-600">{errorMessage}</p>
+          <p className="mb-6 text-gray-600 text-sm">{errorMessage}</p>
           <Button onClick={() => setPaymentStatus(PaymentStatus.IDLE)}>
             Try Again
           </Button>
